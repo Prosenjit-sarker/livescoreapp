@@ -53,13 +53,44 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           return SizedBox();
 
-
         }
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: Icon(Icons.add),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              FootballMatch match = FootballMatch(
+                  team1name: 'Uruguay',
+                  team2name: 'Brazil',
+                  team1score: 1,
+                  team2score: 2,
+                  isRunning: true,
+                  winnerTeam: '');
+              _firestore.collection('football').doc('uruvsbra').set(match.toJson());
+            },
+            child: Icon(Icons.add),
 
+          ),
+
+          FloatingActionButton(
+            onPressed: () {
+              FootballMatch match = FootballMatch(
+                  team1name: 'Uruguay',
+                  team2name: 'Brazil',
+                  team1score: 1,
+                  team2score: 2,
+                  isRunning: false,
+                  winnerTeam: '');
+              _firestore.collection('football').doc('uruvsbra').update(match.toJson());
+              //_firestore.collection('football').doc('uruvsbra').delete();
+
+
+            },
+            child: Icon(Icons.update),
+
+          ),
+        ],
       ),
     );
   }
@@ -119,5 +150,15 @@ class FootballMatch {
       isRunning: jsonData['is_running'],
       winnerTeam: jsonData['winner_team'],
     );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'team1_name': team1name,
+      'team2_name': team2name,
+      'team1_score': team1score,
+      'team2_score': team2score,
+      'is_running': isRunning,
+      'winner_team': winnerTeam,
+    };
   }
 }
