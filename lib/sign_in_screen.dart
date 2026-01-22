@@ -1,15 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:live_score_app/home_screen.dart';
+import 'package:live_score_app/sign_up_screen.dart';
 
-class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+class SignInScreen extends StatefulWidget {
+  const SignInScreen({super.key});
 
   @override
-  State<SignUpScreen> createState() => _SignUpScreenState();
+  State<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignUpScreenState extends State<SignUpScreen> {
+class _SignInScreenState extends State<SignInScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -17,7 +19,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Sign Up')),
+      appBar: AppBar(title: Text('Sign in')),
       body: Form(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -27,7 +29,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             spacing: 16,
             children: [
               Text(
-                'Sign Up with email and password',
+                'Sign in with email and password',
                 style: TextTheme.of(context).titleLarge,
               ),
               TextFormField(
@@ -60,8 +62,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 },
               ),
               FilledButton(
+                onPressed: _onTapSignInButton,
+                child: Text('Sign in'),
+              ),
+              TextButton(
                 onPressed: _onTapSignUpButton,
-                child: Text('Sign Up'),
+                child: Text('Create an account'),
               ),
             ],
           ),
@@ -70,28 +76,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Future<void> _onTapSignUpButton() async {
+  Future<void> _onTapSignInButton() async {
     if (_formKey.currentState!.validate()) {
       try {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text,
           password: _passwordController.text,
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User created successfully')),
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => HomeScreen()),
+          (predicate) => false,
         );
       } on FirebaseAuthException catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message.toString())));
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
-
+  void _onTapSignUpButton() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => SignUpScreen()));
+  }
   @override
   void dispose() {
     _emailController.dispose();

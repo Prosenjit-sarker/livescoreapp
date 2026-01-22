@@ -1,5 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,12 +13,44 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   final List<FootballMatch> _footballMatches = [];
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  BannerAd? _bannerAd;
 
- /* @override
+  void _loadAd() async {
+    // Get an AnchoredAdaptiveBannerAdSize before loading the ad.
+    final size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
+      MediaQuery.sizeOf(context).width.truncate(),
+    );
+
+    if (size == null) {
+      // Unable to get width of anchored banner.
+      return;
+    }
+
+    BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/9214589741',
+      request: const AdRequest(),
+      size: size,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          // Called when an ad is successfully received.
+          debugPrint("Ad was loaded.");
+          setState(() {
+            _bannerAd = ad as BannerAd;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          // Called when an ad request failed.
+          debugPrint("Ad failed to load with error: $err");
+          ad.dispose();
+        },
+      ),
+    ).load();
+  }
+
+  /* @override
   void initState() {
     super.initState();
     _fetchFootballMatches();
@@ -32,28 +68,72 @@ class _HomeScreenState extends State<HomeScreen> {
   }*/
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Football Live Score')),
-      body: StreamBuilder(
-        stream: _firestore.collection('football').snapshots(),
-        builder: (context, asyncSnapshot) {
-          if (asyncSnapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if(asyncSnapshot.hasError){
-            return Center(child: Text('Error: ${asyncSnapshot.error}'),);
-          }
-          if (asyncSnapshot.hasData){
-            _footballMatches.clear();
-            for (QueryDocumentSnapshot<Map<String, dynamic>> doc in asyncSnapshot.data!.docs) {
-              _footballMatches.add(FootballMatch.fromJson(doc.data()));
-            }
-            return _buildListView();
-          }
-          return SizedBox();
+  void initState() {
+    super.initState();
+    FirebaseCrashlytics.instance.log('Entering into home screen');
+  }
 
-        }
+  @override
+  Widget build(BuildContext context) {
+    if (_bannerAd == null) {
+      _loadAd();
+
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Football Live Score \n ${FirebaseAuth.instance.currentUser?.email}',
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              FirebaseAnalytics.instance.logEvent(
+                name: 'Tired logout',
+                parameters: {
+                  'user_id': FirebaseAuth.instance.currentUser!.uid,
+                  'email': FirebaseAuth.instance.currentUser!.email!,
+                },
+              );
+              throw Exception('My exception');
+              //FirebaseAuth.instance.signOut();
+            },
+            icon: Icon(Icons.logout),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_bannerAd != null)
+            SafeArea(
+              child: SizedBox(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            ),
+          Expanded(
+            child: StreamBuilder(
+              stream: _firestore.collection('football').snapshots(),
+              builder: (context, asyncSnapshot) {
+                if (asyncSnapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (asyncSnapshot.hasError) {
+                  return Center(child: Text('Error: ${asyncSnapshot.error}'));
+                }
+                if (asyncSnapshot.hasData) {
+                  _footballMatches.clear();
+                  for (QueryDocumentSnapshot<Map<String, dynamic>> doc
+                      in asyncSnapshot.data!.docs) {
+                    _footballMatches.add(FootballMatch.fromJson(doc.data()));
+                  }
+                  return _buildListView();
+                }
+                return SizedBox();
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -61,34 +141,38 @@ class _HomeScreenState extends State<HomeScreen> {
           FloatingActionButton(
             onPressed: () {
               FootballMatch match = FootballMatch(
-                  team1name: 'Uruguay',
-                  team2name: 'Brazil',
-                  team1score: 1,
-                  team2score: 2,
-                  isRunning: true,
-                  winnerTeam: '');
-              _firestore.collection('football').doc('uruvsbra').set(match.toJson());
+                team1name: 'Uruguay',
+                team2name: 'Brazil',
+                team1score: 1,
+                team2score: 2,
+                isRunning: true,
+                winnerTeam: '',
+              );
+              _firestore
+                  .collection('football')
+                  .doc('uruvsbra')
+                  .set(match.toJson());
             },
             child: Icon(Icons.add),
-
           ),
 
           FloatingActionButton(
             onPressed: () {
               FootballMatch match = FootballMatch(
-                  team1name: 'Uruguay',
-                  team2name: 'Brazil',
-                  team1score: 1,
-                  team2score: 2,
-                  isRunning: false,
-                  winnerTeam: '');
-              _firestore.collection('football').doc('uruvsbra').update(match.toJson());
+                team1name: 'Uruguay',
+                team2name: 'Brazil',
+                team1score: 1,
+                team2score: 2,
+                isRunning: false,
+                winnerTeam: '',
+              );
+              _firestore
+                  .collection('football')
+                  .doc('uruvsbra')
+                  .update(match.toJson());
               //_firestore.collection('football').doc('uruvsbra').delete();
-
-
             },
             child: Icon(Icons.update),
-
           ),
         ],
       ),
@@ -97,30 +181,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildListView() {
     return ListView.separated(
-            itemCount: _footballMatches.length,
-            itemBuilder: (context, index) {
-              final footballMatch = _footballMatches[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  radius: 8,
-                  backgroundColor: footballMatch.isRunning
-                      ? Colors.green
-                      : Colors.grey,
-                ),
-                title: Text(
-                  '${footballMatch.team1name} vs ${footballMatch.team2name}',
-                ),
-                subtitle: Text('Winner Team: ${footballMatch.winnerTeam}'),
-                trailing: Text(
-                  '${footballMatch.team1score}:${footballMatch.team2score}',
-                  style: TextTheme.of(context).titleLarge,
-                ),
-              );
-            },
-            separatorBuilder: (context, index) {
-              return Divider();
-            },
-          );
+      itemCount: _footballMatches.length,
+      itemBuilder: (context, index) {
+        final footballMatch = _footballMatches[index];
+        return ListTile(
+          leading: CircleAvatar(
+            radius: 8,
+            backgroundColor: footballMatch.isRunning
+                ? Colors.green
+                : Colors.grey,
+          ),
+          title: Text(
+            '${footballMatch.team1name} vs ${footballMatch.team2name}',
+          ),
+          subtitle: Text('Winner Team: ${footballMatch.winnerTeam}'),
+          trailing: Text(
+            '${footballMatch.team1score}:${footballMatch.team2score}',
+            style: TextTheme.of(context).titleLarge,
+          ),
+        );
+      },
+      separatorBuilder: (context, index) {
+        return Divider();
+      },
+    );
   }
 }
 
